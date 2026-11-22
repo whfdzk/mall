@@ -17,7 +17,7 @@ public class OssConfig {
     private String bucketName;
 
     @Bean
-    @ConditionalOnExpression("!'${aliyun.oss.access-key-id:}'.isEmpty()")
+    @ConditionalOnExpression("!'${aliyun.oss.access-key-id:}'.isEmpty() && !'${aliyun.oss.endpoint:}'.isEmpty()")
     public OSS ossClient() {
         return new OSSClientBuilder().build(endpoint, accessKeyId, accessKeySecret);
     }

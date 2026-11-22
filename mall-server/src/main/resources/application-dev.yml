@@ -15,13 +15,13 @@ spring:
   autoconfigure:
     exclude: []
   datasource:
-    url: jdbc:mysql://localhost:3306/mall?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://localhost:3308/mall?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
     username: root
     password: 123456
   data:
     redis:
       host: localhost
-      port: 6379
+      port: 6381
       password: 123456
       database: 0
   rabbitmq:
@@ -38,10 +38,10 @@ mybatis-plus:
 
 aliyun:
   oss:
-    endpoint: ${OSS_ENDPOINT}
-    access-key-id: ${OSS_ACCESS_KEY_ID}
-    access-key-secret: ${OSS_ACCESS_KEY_SECRET}
-    bucket-name: ${OSS_BUCKET_NAME}
+    endpoint: ${OSS_ENDPOINT:}
+    access-key-id: ${OSS_ACCESS_KEY_ID:}
+    access-key-secret: ${OSS_ACCESS_KEY_SECRET:}
+    bucket-name: ${OSS_BUCKET_NAME:}
 
 rate-limit:
   enabled: false

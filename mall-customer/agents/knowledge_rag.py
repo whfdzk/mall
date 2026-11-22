@@ -45,6 +45,22 @@ class KnowledgeRAGAgent:
         self.llm = llm
         self.long_term_memory = long_term_memory or LongTermMemory()
 
+    def _is_mock(self) -> bool:
+        """是否处于无 Key 降级（MockLLM）状态"""
+        return hasattr(self.llm, "route_intent")
+
+    def _answer_from_docs(self, query: str, docs: list[dict]) -> str:
+        """无 Key 降级：直接基于检索到的文档原文拼接回答，不做 LLM 生成"""
+        if not docs:
+            return "抱歉，知识库中暂未找到与您问题相关的信息。建议您联系人工客服获取帮助。"
+
+        top = docs[0]
+        content = top.get("content", "").strip()
+        source = top.get("source", "未知")
+        score = top.get("score")
+        score_text = f"（匹配度 {score:.2f}）" if isinstance(score, (int, float)) else ""
+        return f"根据知识库，为您找到以下信息{score_text}：\n\n{content}\n\n—— 来源：{source}"
+
     @trace_agent_call("rag_query_rewrite")
     async def rewrite_query(self, original_query: str) -> str:
         """Query改写：将口语化问题转为检索友好的查询"""
@@ -129,13 +145,16 @@ class KnowledgeRAGAgent:
 
         original_query = messages[-1].content
 
-        rewritten_query = await self.rewrite_query(original_query)
-
-        raw_docs = await self.retrieve_documents(rewritten_query, top_k=5)
-
-        reranked_docs = await self.rerank_documents(rewritten_query, raw_docs, top_k=3)
-
-        answer = await self.generate_answer(original_query, reranked_docs)
+        if self._is_mock():
+            # 无 Key 降级：跳过 LLM 改写/重排（MockLLM 会破坏查询），
+            # 直接用原始问题检索，并基于文档原文作答
+            raw_docs = await self.retrieve_documents(original_query, top_k=3)
+            answer = self._answer_from_docs(original_query, raw_docs)
+        else:
+            rewritten_query = await self.rewrite_query(original_query)
+            raw_docs = await self.retrieve_documents(rewritten_query, top_k=5)
+            reranked_docs = await self.rerank_documents(rewritten_query, raw_docs, top_k=3)
+            answer = await self.generate_answer(original_query, reranked_docs)
 
         return {
             **state,

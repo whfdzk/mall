@@ -7,6 +7,7 @@ import com.qiujie.enums.OrderStatusEnum;
 import com.qiujie.mapper.OrderItemMapper;
 import com.qiujie.mapper.OrderMapper;
 import com.qiujie.mapper.ProductMapper;
+import com.qiujie.service.CouponService;
 import com.qiujie.util.RedisUtil;
 import com.qiujie.util.SalesRankService;
 import com.rabbitmq.client.Channel;
@@ -35,15 +36,18 @@ public class OrderTimeoutListener {
     private final ProductMapper productMapper;
     private final RedisUtil redisUtil;
     private final SalesRankService salesRankService;
+    private final CouponService couponService;
 
     public OrderTimeoutListener(OrderMapper orderMapper, OrderItemMapper orderItemMapper,
                                  ProductMapper productMapper,
-                                 RedisUtil redisUtil, SalesRankService salesRankService) {
+                                 RedisUtil redisUtil, SalesRankService salesRankService,
+                                 CouponService couponService) {
         this.orderMapper = orderMapper;
         this.orderItemMapper = orderItemMapper;
         this.productMapper = productMapper;
         this.redisUtil = redisUtil;
         this.salesRankService = salesRankService;
+        this.couponService = couponService;
     }
 
     @RabbitListener(queues = RabbitMQConfig.ORDER_TIMEOUT_QUEUE)
@@ -60,6 +64,9 @@ public class OrderTimeoutListener {
                 restoreSeckillStock(order);
                 releaseLockStock(items);
                 adjustSalesRank(items);
+                if (order.getCouponId() != null) {
+                    couponService.releaseUserCoupon(order.getId());
+                }
                 log.info("Order {} cancelled due to timeout", message.getOrderId());
             }
             channel.basicAck(deliveryTag, false);

@@ -4,10 +4,12 @@ import com.qiujie.dto.Response;
 import com.qiujie.dto.ResponseDTO;
 import com.qiujie.entity.Cart;
 import com.qiujie.service.CartService;
+import com.qiujie.validation.AddGroup;
+import com.qiujie.validation.UpdateGroup;
 import cn.dev33.satoken.stp.StpUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -32,14 +34,14 @@ public class CartController {
 
     @Operation(summary = "添加到购物车")
     @PostMapping("/add")
-    public ResponseDTO<Void> add(@Valid @RequestBody Cart cart) {
+    public ResponseDTO<Void> add(@Validated(AddGroup.class) @RequestBody Cart cart) {
         cartService.add(StpUtil.getLoginIdAsInt(), cart);
         return Response.ok("添加购物车成功");
     }
 
     @Operation(summary = "更新购物车")
     @PutMapping("/update")
-    public ResponseDTO<Void> update(@Valid @RequestBody Cart cart) {
+    public ResponseDTO<Void> update(@Validated(UpdateGroup.class) @RequestBody Cart cart) {
         cartService.update(StpUtil.getLoginIdAsInt(), cart);
         return Response.ok("更新成功");
     }

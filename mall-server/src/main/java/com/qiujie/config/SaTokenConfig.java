@@ -30,8 +30,10 @@ public class SaTokenConfig implements WebMvcConfigurer {
                         "/portal/seckill/sessions",
                         "/portal/seckill/sessions/upcoming",
                         "/portal/seckill/server-time",
+                        "/internal/**",
                         "/admin/auth/verificationCode",
                         "/admin/auth/login",
+                        "/admin/product/img",
                         "/actuator/**",
                         "/swagger-ui/**",
                         "/v3/api-docs/**"

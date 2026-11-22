@@ -2,7 +2,7 @@ import {createRouter, createWebHistory} from 'vue-router'
 import {useAuthStore} from '@/stores/auth'
 import { ElMessage } from 'element-plus'
 
-const authRequired = ['Cart', 'Checkout', 'OrderList', 'UserInfo']
+const authRequired = ['Cart', 'Checkout', 'OrderList', 'UserInfo', 'MyCoupons']
 
 const routes = [
     {
@@ -27,6 +27,7 @@ const routes = [
             {path: 'cart', name: 'Cart', component: () => import('../views/Cart.vue')},
             {path: 'checkout', name: 'Checkout', component: () => import('../views/Checkout.vue')},
             {path: 'orders', name: 'OrderList', component: () => import('../views/OrderList.vue')},
+            {path: 'my-coupons', name: 'MyCoupons', component: () => import('../views/MyCoupons.vue')},
             {path: 'userinfo', name: 'UserInfo', component: () => import('../views/UserInfo.vue')}
         ]
     },

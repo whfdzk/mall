@@ -10,7 +10,7 @@ import operator
 import os
 from typing import Annotated, Any, Literal, TypedDict
 
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 from langgraph.graph.message import RemoveMessage, add_messages
@@ -20,6 +20,8 @@ from agents.knowledge_rag import KnowledgeRAGAgent
 from agents.ticket_handler import TicketHandlerAgent
 from agents.compliance_checker import ComplianceCheckerAgent
 from agents.chitchat import ChitchatAgent
+from agents.order_query import OrderQueryAgent
+from agents.mock_llm import MockLLM
 from memory.working_memory import WorkingMemory
 from memory.long_term_memory import LongTermMemory
 from tracing.otel_config import trace_agent_call
@@ -63,32 +65,14 @@ def trim_history(state: AgentState) -> dict[str, Any]:
 
 # ─── Supervisor节点 ───
 
-SUPERVISOR_SYSTEM_PROMPT = """你是一个智能客服系统的Supervisor（主管编排Agent）。
-你的职责是：
-1. 分析用户意图，决定分发给哪个子Agent处理
-2. 汇总子Agent的处理结果，生成最终回复
-3. 确保所有回复都经过合规审查
-
-可用的子Agent：
-- knowledge_rag: 知识库检索和回答（商品、订单、退换货、平台规则等业务咨询）
-- ticket_handler: 工单创建和查询（退款、理赔、投诉等需要办理的业务）
-- chitchat: 闲聊寒暄（打招呼、问候、感谢、告别、与业务无关的闲聊）
-- compliance_checker: 合规审查（敏感内容识别，仅在涉及资金安全、欺诈举报等场景直达）
-
-路由规则：
-- 业务咨询/查询类 → knowledge_rag
-- 需要办理的业务、投诉 → ticket_handler
-- 闲聊寒暄、与业务无关的消息 → chitchat（不要为此检索知识库）
-- 拿不准时 → knowledge_rag（宁可多查，不可漏答）
-"""
-
 
 class SupervisorNode:
     """Supervisor决策节点"""
 
-    def __init__(self, llm: ChatOpenAI, working_memory: WorkingMemory):
+    def __init__(self, llm: ChatOpenAI, working_memory: WorkingMemory, intent_router: IntentRouterAgent):
         self.llm = llm
         self.working_memory = working_memory
+        self.intent_router = intent_router
 
     @trace_agent_call("supervisor")
     async def route_decision(self, state: AgentState) -> AgentState:
@@ -96,22 +80,19 @@ class SupervisorNode:
         messages = state["messages"]
         session_id = state.get("session_id", "default")
 
-        context = self.working_memory.get_context(session_id)
+        last_text = ""
+        for m in reversed(messages):
+            if isinstance(m, HumanMessage):
+                last_text = m.content if isinstance(m.content, str) else str(m.content)
+                break
+        if not last_text and messages:
+            last_text = messages[-1].content
 
-        routing_prompt = [
-            SystemMessage(content=SUPERVISOR_SYSTEM_PROMPT),
-            SystemMessage(content=f"当前工作记忆上下文: {context}"),
-            *messages,
-            HumanMessage(content=(
-                "请分析用户的最新消息，返回应该路由到的Agent名称。"
-                "只返回以下之一: knowledge_rag, ticket_handler, chitchat, compliance_checker"
-            )),
-        ]
+        # 统一交给意图路由 Agent 决策（真实 LLM 与 MockLLM 降级均由其内部处理）
+        intent_result = await self.intent_router.classify(last_text)
+        intent = intent_result.suggested_agent
 
-        response = await self.llm.ainvoke(routing_prompt)
-        intent = response.content.strip().lower()
-
-        valid_intents = {"knowledge_rag", "ticket_handler", "chitchat", "compliance_checker"}
+        valid_intents = {"knowledge_rag", "order_query", "ticket_handler", "chitchat", "compliance_checker"}
         if intent not in valid_intents:
             intent = "knowledge_rag"
 
@@ -159,6 +140,7 @@ def route_to_agent(state: AgentState) -> str:
     intent = state.get("intent", "knowledge_rag")
     route_map = {
         "knowledge_rag": "knowledge_rag",
+        "order_query": "order_query",
         "ticket_handler": "ticket_handler",
         "chitchat": "chitchat",
         "compliance_checker": "compliance_check",
@@ -178,6 +160,7 @@ def create_supervisor_graph(
         working_memory: WorkingMemory | None = None,
         long_term_memory: LongTermMemory | None = None,
         checkpointer: Any | None = None,
+        mcp_server: Any | None = None,
         enable_checkpointing: bool = True,
 ) -> StateGraph:
     """
@@ -195,19 +178,24 @@ def create_supervisor_graph(
         enable_checkpointing: 是否启用检查点（支持断点恢复）
     """
     if llm is None:
-        # 若没有指定模型，就使用配置的默认模型
-        llm = ChatOpenAI(model=os.getenv("MODEL_NAME"),
-                         api_key=os.getenv("OPENAI_API_KEY"),
-                         base_url=os.getenv("OPENAI_BASE_URL"),
-                         temperature=0)
+        api_key = os.getenv("OPENAI_API_KEY", "").strip()
+        if api_key:
+            print(f"[Supervisor] 使用真实 LLM: model={os.getenv('MODEL_NAME')}, base_url={os.getenv('OPENAI_BASE_URL')}")
+            llm = ChatOpenAI(model=os.getenv("MODEL_NAME"),
+                             api_key=api_key,
+                             base_url=os.getenv("OPENAI_BASE_URL"),
+                             temperature=0)
+        else:
+            print("[Supervisor] ⚠️ 未配置 OPENAI_API_KEY，降级为 MockLLM（规则引擎回复）")
+            llm = MockLLM()
     if working_memory is None:
         working_memory = WorkingMemory()
 
-    supervisor = SupervisorNode(llm, working_memory)
-
-    intent_router = IntentRouterAgent(llm)  # 暂未接入路由，保留待意图识别Agent启用
+    intent_router = IntentRouterAgent(llm)
+    supervisor = SupervisorNode(llm, working_memory, intent_router)
     knowledge_agent = KnowledgeRAGAgent(llm, long_term_memory)
-    ticket_agent = TicketHandlerAgent(llm)
+    order_agent = OrderQueryAgent(llm, mcp_server=mcp_server)
+    ticket_agent = TicketHandlerAgent(llm, mcp_server=mcp_server)
     compliance_agent = ComplianceCheckerAgent(llm)
     chitchat_agent = ChitchatAgent(llm)
 
@@ -216,6 +204,7 @@ def create_supervisor_graph(
     graph.add_node("trim_history", trim_history)   # 滑动窗口：裁剪超窗口的历史消息
     graph.add_node("supervisor_route", supervisor.route_decision)
     graph.add_node("knowledge_rag", knowledge_agent.process)
+    graph.add_node("order_query", order_agent.process)
     graph.add_node("ticket_handler", ticket_agent.process)
     graph.add_node("chitchat", chitchat_agent.process)
     graph.add_node("compliance_check", compliance_agent.process)
@@ -229,6 +218,7 @@ def create_supervisor_graph(
         route_to_agent,
         {
             "knowledge_rag": "knowledge_rag",
+            "order_query": "order_query",
             "ticket_handler": "ticket_handler",
             "chitchat": "chitchat",
             "compliance_check": "compliance_check",
@@ -236,6 +226,7 @@ def create_supervisor_graph(
     )
 
     graph.add_edge("knowledge_rag", "compliance_check")
+    graph.add_edge("order_query", "compliance_check")
     graph.add_edge("ticket_handler", "compliance_check")
     graph.add_edge("chitchat", "compliance_check")
     graph.add_edge("compliance_check", "synthesize")

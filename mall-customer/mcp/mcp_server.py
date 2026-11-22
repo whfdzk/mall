@@ -11,6 +11,9 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Awaitable
 from datetime import datetime
 
+from mcp.ticket_store import TicketStore
+from mcp.mall_server_client import MallServerClient
+
 
 @dataclass
 class ToolDefinition:
@@ -190,28 +193,82 @@ class MCPToolServer:
         ]
 
 
-def create_default_tools(server: MCPToolServer) -> MCPToolServer:
-    """注册默认的MCP工具集"""
+# mall-server 订单状态码 → 中文（oms_order.status）
+ORDER_STATUS_TEXT: dict[int, str] = {
+    0: "待支付",
+    1: "已支付",
+    2: "已发货",
+    3: "已完成",
+    4: "已取消",
+}
+
+
+def _simplify_order(order: dict) -> dict:
+    """把 mall-server 订单实体精简为 LLM 易读的结构（去掉冗余/敏感字段）"""
+    items = order.get("items") or []
+    return {
+        "order_sn": order.get("orderSn"),
+        "status": ORDER_STATUS_TEXT.get(order.get("status"), order.get("status")),
+        "total_amount": order.get("totalAmount"),
+        "create_time": order.get("createTime"),
+        "delivery_time": order.get("deliveryTime"),
+        "items": [
+            {"product_name": it.get("productName"), "amount": it.get("amount")}
+            for it in items
+        ],
+    }
+
+
+def create_default_tools(
+    server: MCPToolServer,
+    ticket_store: TicketStore | None = None,
+    long_term_memory: Any | None = None,
+    mall_server_client: MallServerClient | None = None,
+) -> MCPToolServer:
+    """注册默认的MCP工具集（ticket_store/long_term_memory/mall_server_client 由上层注入）"""
+    ticket_store = ticket_store or TicketStore()
 
     @server.register(
         name="order_query",
-        description="查询订单信息，支持按订单号或用户ID查询",
+        description="查询用户订单信息（真实数据来自 mall-server），可按订单号筛选",
         input_schema={
             "type": "object",
             "properties": {
-                "order_id": {"type": "string", "description": "订单号"},
-                "user_id": {"type": "string", "description": "用户ID"},
+                "user_id": {"type": "string", "description": "用户ID（必填，用于查询该用户的订单）"},
+                "order_id": {"type": "string", "description": "订单号 order_sn，可选，用于筛选指定订单"},
             },
+            "required": ["user_id"],
         },
         category="order",
     )
-    async def order_query(order_id: str = "", user_id: str = "") -> dict:
+    async def order_query(user_id: str = "", order_id: str = "") -> dict:
+        # 优先走 mall-server 真实订单接口；未配置或调用失败时降级为静态示例
+        if mall_server_client is not None and mall_server_client.configured and user_id:
+            try:
+                orders = await mall_server_client.list_orders(user_id)
+                simplified = [_simplify_order(o) for o in orders]
+                if order_id:
+                    simplified = [
+                        o for o in simplified if o.get("order_sn") == order_id
+                    ]
+                return {"user_id": user_id, "count": len(simplified), "orders": simplified}
+            except Exception as e:
+                return {"error": f"订单查询失败: {e}", "orders": []}
+
+        # 降级：未配置 mall-server 或未提供 user_id 时返回静态示例（仅用于开发调试）
         return {
-            "order_id": order_id or "ORD-20260401-001",
-            "status": "shipped",
-            "amount": 299.00,
-            "product": "智能理财产品A",
-            "created_at": "2026-04-01T10:00:00",
+            "user_id": user_id,
+            "count": 1,
+            "orders": [
+                {
+                    "order_sn": order_id or "ORD-20260401-001",
+                    "status": "已发货",
+                    "total_amount": 299.00,
+                    "create_time": "2026-04-01T10:00:00",
+                    "delivery_time": "2026-04-02T09:30:00",
+                    "items": [{"product_name": "智能理财产品A", "amount": 1}],
+                }
+            ],
         }
 
     @server.register(
@@ -228,9 +285,9 @@ def create_default_tools(server: MCPToolServer) -> MCPToolServer:
         category="knowledge",
     )
     async def knowledge_search(query: str, top_k: int = 3) -> list[dict]:
-        return [
-            {"content": f"关于'{query}'的知识库文档片段", "source": "FAQ.md", "score": 0.95},
-        ]
+        if long_term_memory is not None:
+            return long_term_memory.search(query, top_k=top_k)
+        return [{"content": f"关于'{query}'的知识库文档片段", "source": "FAQ.md", "score": 0.95}]
 
     @server.register(
         name="ticket_create",
@@ -242,19 +299,65 @@ def create_default_tools(server: MCPToolServer) -> MCPToolServer:
                 "description": {"type": "string"},
                 "priority": {"type": "string", "enum": ["low", "medium", "high", "urgent"]},
                 "category": {"type": "string"},
+                "user_id": {"type": "string"},
             },
             "required": ["title", "description"],
         },
         category="ticket",
     )
-    async def ticket_create(title: str, description: str, priority: str = "medium", category: str = "general") -> dict:
-        import uuid
-        return {
-            "ticket_id": f"TK-{uuid.uuid4().hex[:8].upper()}",
-            "title": title,
-            "status": "created",
-            "priority": priority,
-        }
+    async def ticket_create(
+        title: str,
+        description: str,
+        priority: str = "medium",
+        category: str = "general",
+        user_id: str = "anonymous",
+    ) -> dict:
+        return ticket_store.create(
+            ticket_type=category,
+            priority=priority,
+            summary=title,
+            details=description,
+            user_id=user_id,
+        )
+
+    @server.register(
+        name="ticket_query",
+        description="查询客服工单状态",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "ticket_id": {"type": "string"},
+            },
+            "required": ["ticket_id"],
+        },
+        category="ticket",
+    )
+    async def ticket_query(ticket_id: str) -> dict | None:
+        return ticket_store.query(ticket_id)
+
+    @server.register(
+        name="ticket_update",
+        description="更新客服工单（优先级/状态）",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "ticket_id": {"type": "string"},
+                "priority": {"type": "string", "enum": ["low", "medium", "high", "urgent"]},
+                "status": {"type": "string"},
+            },
+            "required": ["ticket_id"],
+        },
+        category="ticket",
+    )
+    async def ticket_update(
+        ticket_id: str, priority: str | None = None, status: str | None = None
+    ) -> dict | None:
+        ticket = None
+        if priority is not None:
+            ticket = ticket_store.update_priority(ticket_id, priority)
+        if status is not None:
+            ticket = ticket_store.update_status(ticket_id, status)
+        return ticket
 
     @server.register(
         name="risk_check",

@@ -8,9 +8,9 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isLogin = computed(() => !!user.value)
 
-  function loginSuccess(userVal) {
+  function loginSuccess(userVal, tokenVal) {
     user.value = userVal
-    setAuth({ user: userVal })
+    setAuth({ user: userVal, token: tokenVal })
   }
 
   async function logout() {

@@ -14,11 +14,13 @@ import com.qiujie.util.DeviceUtils;
 import com.qiujie.util.RedisUtil;
 import com.qiujie.util.ValidateCodeUtil;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
 
+@Slf4j
 @Service
 public class AuthServiceImpl extends ServiceImpl<UserMapper, User> implements AuthService {
 

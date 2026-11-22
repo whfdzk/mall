@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Set;
 
 @Service
-@ConditionalOnExpression("!'${aliyun.oss.access-key-id:}'.isEmpty()")
+@ConditionalOnExpression("!'${aliyun.oss.access-key-id:}'.isEmpty() && !'${aliyun.oss.endpoint:}'.isEmpty()")
 public class OssServiceImpl implements OssService {
 
     private final OSS ossClient;

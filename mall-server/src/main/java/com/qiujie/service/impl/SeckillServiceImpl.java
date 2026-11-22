@@ -224,7 +224,7 @@ public class SeckillServiceImpl extends ServiceImpl<SeckillSessionMapper, Seckil
         // KEYS[1] = stockKey   KEYS[2] = orderKey
         // ARGV[1] = 初始库存   ARGV[2] = 用户标记过期时间(秒)
         String lua = """
-            local stockKey = KEYS[1]
+            local stockKey = KEYS[1] 
             local orderKey = KEYS[2]
             local initStock = tonumber(ARGV[1])
             local orderTtl = tonumber(ARGV[2])

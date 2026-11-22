@@ -4,3 +4,4 @@ export { getCartList, addToCart, updateCartAmount, deleteCartItem, batchDeleteCa
 export { createOrderFromCart, buyNow, getOrderList, getOrderDetail, payOrder, cancelOrder, receiptOrder, updateRecipient, deleteOrder } from './order'
 export { getUserInfo, updateUserInfo, uploadAvatar, getAvatar } from './user'
 export { getImageUrl } from './product'
+export { getClaimList, claimCoupon, getMyCoupons, calculateDiscount } from './coupon'

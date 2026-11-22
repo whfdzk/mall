@@ -76,6 +76,9 @@ services:
       - "ES_JAVA_OPTS=-Xms256m -Xmx256m"
     volumes:
       - mall-es-data:/usr/share/elasticsearch/data
+      - ./es-entrypoint.sh:/usr/local/bin/es-entrypoint.sh:ro
+    entrypoint: ["/usr/local/bin/es-entrypoint.sh"]
+    command: ["bin/elasticsearch"]
     networks:
       - mall-network
     restart: unless-stopped

@@ -90,7 +90,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Search, ShoppingCart } from '@element-plus/icons-vue'
@@ -102,19 +102,21 @@ import foot3 from '@/assets/img/footer-returns.png'
 import foot4 from '@/assets/img/footer-support.png'
 import { useAuthStore } from '@/stores/auth'
 import { useUserStore } from '@/stores/user'
+import { useCartStore } from '@/stores/cart'
 import { getCategories } from '../api'
-import { getCartList } from '@/api/cart'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const userStore = useUserStore()
+const cartStore = useCartStore()
 const searchInputRef = ref(null)
 const keyword = ref('')
 const isSticky = ref(false)
 const hoverCat = ref(null)
 const rootCategories = ref([])
-const cartCount = ref(0)
+
+const cartCount = computed(() => cartStore.totalCount)
 
 const isLogin = computed(() => authStore.isLogin)
 const username = computed(() => authStore.user?.name)
@@ -154,12 +156,12 @@ onMounted(async () => {
     const cats = await getCategories()
     rootCategories.value = cats.data || []
   } catch {}
-  if (authStore.isLogin) {
-    try {
-      const cart = await getCartList()
-      cartCount.value = cart?.data?.length || 0
-    } catch {}
-  }
+  if (authStore.isLogin) cartStore.refresh()
+})
+
+watch(() => authStore.isLogin, (v) => {
+  if (v) cartStore.refresh()
+  else cartStore.reset()
 })
 
 onUnmounted(() => window.removeEventListener('scroll', handleScroll))

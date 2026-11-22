@@ -30,9 +30,9 @@ class ComplianceResult:
 
 
 SENSITIVE_PATTERNS = {
-    "phone": r"1[3-9]\d{9}",
-    "id_card": r"\d{17}[\dXx]",
-    "bank_card": r"\d{16,19}",
+    "phone": r"(?<!\d)1[3-9]\d{9}(?!\d)",
+    "id_card": r"(?<!\d)\d{17}[\dXx](?!\d)",
+    "bank_card": r"(?<!\d)\d{16,19}(?!\d)",
     "email": r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}",
 }
 

@@ -7,35 +7,17 @@
 from __future__ import annotations
 
 import re
-import uuid
-from datetime import datetime
-from enum import Enum
 from typing import Any
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
+from mcp.ticket_store import TicketStore
 from tracing.otel_config import trace_agent_call
 
 
 # 从对话历史中提取已有工单号（TK-YYYYMMDD-XXXXXX）
 TICKET_RE = re.compile(r"TK-\d{8}-[A-Fa-f0-9]{6}")
-
-
-class TicketStatus(str, Enum):
-    CREATED = "created"
-    PROCESSING = "processing"
-    PENDING_REVIEW = "pending_review"
-    RESOLVED = "resolved"
-    CLOSED = "closed"
-    ESCALATED = "escalated"
-
-
-class TicketPriority(str, Enum):
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-    URGENT = "urgent"
 
 
 TICKET_SYSTEM_PROMPT = """你是一个专业的工单处理Agent，负责处理客户的业务办理请求。
@@ -76,59 +58,74 @@ TICKET_SYSTEM_PROMPT = """你是一个专业的工单处理Agent，负责处理�
 """
 
 
-class TicketStore:
-    """内存工单存储（生产环境应替换为数据库）"""
-
-    def __init__(self):
-        self._tickets: dict[str, dict] = {}
-
-    def create(self, ticket_type: str, priority: str, summary: str, details: str, user_id: str) -> dict:
-        ticket_id = f"TK-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
-        ticket = {
-            "ticket_id": ticket_id,
-            "type": ticket_type,
-            "priority": priority,
-            "status": TicketStatus.CREATED.value,
-            "summary": summary,
-            "details": details,
-            "user_id": user_id,
-            "created_at": datetime.now().isoformat(),
-            "updated_at": datetime.now().isoformat(),
-        }
-        self._tickets[ticket_id] = ticket
-        return ticket
-
-    def query(self, ticket_id: str) -> dict | None:
-        return self._tickets.get(ticket_id)
-
-    def query_by_user(self, user_id: str) -> list[dict]:
-        return [t for t in self._tickets.values() if t["user_id"] == user_id]
-
-    def update_priority(self, ticket_id: str, priority: str) -> dict | None:
-        ticket = self._tickets.get(ticket_id)
-        if ticket:
-            ticket["priority"] = priority
-            ticket["updated_at"] = datetime.now().isoformat()
-        return ticket
-
-    def update_status(self, ticket_id: str, status: str) -> dict | None:
-        ticket = self._tickets.get(ticket_id)
-        if ticket:
-            ticket["status"] = status
-            ticket["updated_at"] = datetime.now().isoformat()
-        return ticket
-
-
 class TicketHandlerAgent:
     """工单处理Agent"""
 
-    def __init__(self, llm: ChatOpenAI, ticket_store: TicketStore | None = None):
+    def __init__(
+        self,
+        llm: ChatOpenAI,
+        ticket_store: TicketStore | None = None,
+        mcp_server: Any | None = None,
+    ):
         self.llm = llm
+        # mcp_server 存在时，工单操作统一走 MCP 工具协议；否则降级为内存 TicketStore
+        self.mcp_server = mcp_server
         self.ticket_store = ticket_store or TicketStore()
+
+    def _is_mock(self) -> bool:
+        """是否处于无 Key 降级（MockLLM）状态"""
+        return hasattr(self.llm, "route_intent")
+
+    def _extract_ticket_id_from_text(self, text: str) -> str | None:
+        """从文本中提取工单号"""
+        match = TICKET_RE.search(text)
+        return match.group(0) if match else None
+
+    def _mock_analyze(self, user_message: str, history: str = "") -> dict:
+        """无 Key 降级：用关键词规则分析工单意图，替代 LLM JSON 解析"""
+        existing_id = self._extract_ticket_id_from_text(history)
+
+        query_kw = ("查询", "查一下", "进度", "状态", "怎么样", "处理到", "催办", "看看")
+        update_kw = ("加急", "升级", "催办", "改", "重新")
+
+        action = "create"
+        if existing_id and any(k in user_message for k in query_kw + update_kw):
+            action = "update" if any(k in user_message for k in update_kw) else "query"
+
+        type_map = (
+            ("退款", "refund"), ("退货", "refund"), ("退钱", "refund"),
+            ("理赔", "claim"), ("开户", "account_open"), ("投诉", "complaint"), ("差评", "complaint"),
+        )
+        ticket_type = "general"
+        for kw, t in type_map:
+            if kw in user_message:
+                ticket_type = t
+                break
+
+        if any(k in user_message for k in ("被盗", "资金安全", "盗刷", "诈骗", "冻结")):
+            priority = "urgent"
+        elif any(k in user_message for k in ("超时", "争议", "投诉", "加急", "差评")):
+            priority = "high"
+        elif any(k in user_message for k in ("咨询", "了解", "怎么", "如何", "流程", "政策")):
+            priority = "low"
+        else:
+            priority = "medium"
+
+        return {
+            "action": action,
+            "ticket_id": existing_id,
+            "ticket_type": ticket_type,
+            "priority": priority,
+            "summary": user_message[:100],
+            "details": user_message,
+        }
 
     @trace_agent_call("ticket_analyze")
     async def analyze_request(self, user_message: str, history: str = "") -> dict:
         """分析用户需求，提取工单信息（history 为最近对话，供提取已有工单号等上下文）"""
+        if self._is_mock():
+            return self._mock_analyze(user_message, history)
+
         if history:
             user_content = f"对话历史:\n{history}\n\n当前用户消息: {user_message}"
         else:
@@ -158,14 +155,26 @@ class TicketHandlerAgent:
 
     @trace_agent_call("ticket_create")
     async def create_ticket(self, ticket_info: dict, user_id: str) -> str:
-        """创建工单"""
-        ticket = self.ticket_store.create(
-            ticket_type=ticket_info.get("ticket_type", "general"),
-            priority=ticket_info.get("priority", "medium"),
-            summary=ticket_info.get("summary", ""),
-            details=ticket_info.get("details", ""),
-            user_id=user_id,
-        )
+        """创建工单（优先走 MCP 工具协议）"""
+        if self.mcp_server is not None:
+            result = await self.mcp_server.call_tool("ticket_create", {
+                "title": ticket_info.get("summary", ""),
+                "description": ticket_info.get("details", ""),
+                "priority": ticket_info.get("priority", "medium"),
+                "category": ticket_info.get("ticket_type", "general"),
+                "user_id": user_id,
+            })
+            ticket = result.result if result.success else None
+            if ticket is None:
+                return "工单创建失败，请稍后重试或联系人工客服。"
+        else:
+            ticket = self.ticket_store.create(
+                ticket_type=ticket_info.get("ticket_type", "general"),
+                priority=ticket_info.get("priority", "medium"),
+                summary=ticket_info.get("summary", ""),
+                details=ticket_info.get("details", ""),
+                user_id=user_id,
+            )
 
         priority_label = {
             "low": "普通", "medium": "中等", "high": "高", "urgent": "紧急"
@@ -183,8 +192,12 @@ class TicketHandlerAgent:
 
     @trace_agent_call("ticket_query")
     async def query_ticket(self, ticket_id: str) -> str:
-        """查询工单状态"""
-        ticket = self.ticket_store.query(ticket_id)
+        """查询工单状态（优先走 MCP 工具协议）"""
+        if self.mcp_server is not None:
+            result = await self.mcp_server.call_tool("ticket_query", {"ticket_id": ticket_id})
+            ticket = result.result if result.success else None
+        else:
+            ticket = self.ticket_store.query(ticket_id)
         if not ticket:
             return f"未找到工单号 {ticket_id}，请确认工单号是否正确。"
 
@@ -264,7 +277,13 @@ class TicketHandlerAgent:
         if action in ("query", "update") and ticket_id:
             if action == "update":
                 priority = ticket_info.get("priority", "medium")
-                updated = self.ticket_store.update_priority(ticket_id, priority)
+                if self.mcp_server is not None:
+                    result = await self.mcp_server.call_tool(
+                        "ticket_update", {"ticket_id": ticket_id, "priority": priority}
+                    )
+                    updated = result.result if result.success else None
+                else:
+                    updated = self.ticket_store.update_priority(ticket_id, priority)
                 result = (
                     self._format_update(updated)
                     if updated

@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+import json
+import re
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -43,7 +45,7 @@ INTENT_SYSTEM_PROMPT = """你是一个专业的意图识别Agent，负责分析�
 2. 二级意图: 具体的业务子类型
 3. 置信度: 0.0-1.0
 4. 关键实体: 提取订单号、产品名、金额等关键信息
-5. 建议路由: knowledge_rag(知识查询), ticket_handler(工单处理), compliance_checker(合规审查)
+5. 建议路由: knowledge_rag(知识查询), order_query(订单/物流查询), ticket_handler(工单处理), compliance_checker(合规审查), chitchat(闲聊寒暄)
 
 以JSON格式返回，示例：
 {
@@ -54,10 +56,12 @@ INTENT_SYSTEM_PROMPT = """你是一个专业的意图识别Agent，负责分析�
     "suggested_agent": "knowledge_rag"
 }
 
-金融场景特殊规则：
+金融场景特殊规则（务必按此优先映射 suggested_agent）：
 - 涉及资金安全、账户异常、欺诈举报 → compliance_checker
-- 涉及退款、理赔、开户 → ticket_handler
-- 涉及产品咨询、利率查询、政策了解 → knowledge_rag
+- 涉及投诉、差评、工单创建/查询/更新、退款、退货、理赔、开户 → ticket_handler
+- 涉及订单状态查询、物流/快递/发货进度查询、收货情况、查某个订单 → order_query
+- 涉及产品咨询、利率/收益查询、政策了解 → knowledge_rag
+- 寒暄、问候、感谢、告别 → chitchat
 """
 
 
@@ -67,9 +71,47 @@ class IntentRouterAgent:
     def __init__(self, llm: ChatOpenAI):
         self.llm = llm
 
+    @staticmethod
+    def _extract_json(raw: str) -> dict[str, Any]:
+        """从 LLM 输出中稳健提取 JSON 对象：剥掉 ```json 代码块并截取首个 {...}"""
+        text = raw.strip()
+        if text.startswith("```"):
+            text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text, flags=re.DOTALL)
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            match = re.search(r"\{.*\}", text, flags=re.DOTALL)
+            if match:
+                try:
+                    return json.loads(match.group(0))
+                except json.JSONDecodeError:
+                    pass
+            return {}
+
     @trace_agent_call("intent_router")
     async def classify(self, user_message: str) -> IntentResult:
-        """对用户消息进行意图分类"""
+        """对用户消息进行意图分类。
+
+        - 真实 LLM：走 INTENT_SYSTEM_PROMPT 结构化 JSON 输出
+        - MockLLM（无 API Key 降级）：走规则路由 route_intent，返回合法意图名
+        """
+        if hasattr(self.llm, "route_intent"):
+            agent = self.llm.route_intent(user_message)
+            primary = {
+                "knowledge_rag": IntentCategory.CONSULTATION,
+                "order_query": IntentCategory.CONSULTATION,
+                "ticket_handler": IntentCategory.TRANSACTION,
+                "compliance_checker": IntentCategory.COMPLIANCE,
+                "chitchat": IntentCategory.UNKNOWN,
+            }.get(agent, IntentCategory.UNKNOWN)
+            return IntentResult(
+                primary_intent=primary,
+                secondary_intent="rule_based",
+                confidence=1.0,
+                entities={},
+                suggested_agent=agent,
+            )
+
         messages = [
             SystemMessage(content=INTENT_SYSTEM_PROMPT),
             HumanMessage(content=f"用户消息: {user_message}"),
@@ -77,10 +119,8 @@ class IntentRouterAgent:
 
         response = await self.llm.ainvoke(messages)
 
-        import json
-        try:
-            result = json.loads(response.content)
-        except json.JSONDecodeError:
+        result = self._extract_json(response.content)
+        if not result:
             result = {
                 "primary_intent": "unknown",
                 "secondary_intent": "unknown",

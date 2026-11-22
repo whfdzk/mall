@@ -12,14 +12,14 @@ import java.lang.annotation.*;
  * @author qiujie
  * @date 2026/05/30
  */
-@Target(ElementType.METHOD)
-@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.METHOD) // 只能加在方法上
+@Retention(RetentionPolicy.RUNTIME) // 运行时注解，需要在运行时获取注解信息
 public @interface RateLimit {
 
     /**
      * Redis key 前缀，最终 key 为 {@code prefix + 客户端IP}
      */
-    String key();
+    String key(); // Redis Key 前缀 → 最终 key = 前缀 + 客户端 IP
 
     /**
      * 时间窗口内允许的最大请求次数

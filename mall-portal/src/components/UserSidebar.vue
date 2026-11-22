@@ -4,6 +4,7 @@
       <router-link to="/userinfo" class="side-item" :class="{ active: active === 'userinfo' }">个人信息</router-link>
       <router-link to="/cart" class="side-item" :class="{ active: active === 'cart' }">购物车</router-link>
       <router-link to="/orders" class="side-item" :class="{ active: active === 'orders' }">订单</router-link>
+      <router-link to="/my-coupons" class="side-item" :class="{ active: active === 'my-coupons' }">我的优惠券</router-link>
     </nav>
   </aside>
 </template>

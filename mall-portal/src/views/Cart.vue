@@ -84,12 +84,13 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ShoppingCart, Goods } from '@element-plus/icons-vue'
 import { getImageUrl } from '@/api/product'
+import { useCartStore } from '@/stores/cart'
 import UserSidebar from '../components/UserSidebar.vue'
 import StepBar from '../components/StepBar.vue'
-import { getCartList, updateCartAmount, deleteCartItem, batchDeleteCart } from '../api'
 
 const router = useRouter()
-const cartList = ref([])
+const cartStore = useCartStore()
+const cartList = computed(() => cartStore.items)
 const loading = ref(false)
 const selectedIds = ref([])
 const allChecked = ref(false)
@@ -112,7 +113,7 @@ const toggleItem = (id, checked) => {
 
 const load = async () => {
   loading.value = true
-  try { const res = await getCartList(); cartList.value = res.data || [] }
+  try { await cartStore.refresh() }
   catch { ElMessage.error('加载购物车失败') }
   finally { loading.value = false }
 }
@@ -122,27 +123,24 @@ const updateQty = async (item, delta) => {
   const n = item.amount + delta
   if (n < 1) return
   if (delta > 0 && item.productStock && n > item.productStock) { ElMessage.warning('已达到最大库存'); return }
-  item.amount = n
-  try { await updateCartAmount({ id: item.id, amount: n }) } catch { item.amount -= delta }
+  try { await cartStore.updateAmount(item.id, n) } catch { ElMessage.error('更新失败') }
 }
 
 const handleDelete = async (id) => {
   try {
-    await deleteCartItem(id)
+    await cartStore.remove(id)
     selectedIds.value = selectedIds.value.filter(s => s !== id)
     ElMessage.success('已删除')
-    load()
   } catch { ElMessage.error('删除失败') }
 }
 
 const batchDelete = async () => {
   if (!selectedIds.value.length) { ElMessage.warning('请选择'); return }
   try {
-    await batchDeleteCart(selectedIds.value)
+    await cartStore.batchRemove(selectedIds.value)
     ElMessage.success('已批量删除')
     selectedIds.value = []
     allChecked.value = false
-    load()
   } catch { ElMessage.error('批量删除失败') }
 }
 

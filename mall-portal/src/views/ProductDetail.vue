@@ -98,11 +98,14 @@ import { ShoppingCart } from '@element-plus/icons-vue'
 import tempBanner1 from '@/assets/img/temp/category-banner.jpg'
 import { getImageUrl } from '@/api/product'
 import { useAuthStore } from '@/stores/auth'
+import { useCartStore } from '@/stores/cart'
 import { getProductDetail, addToCart, buyNow } from '../api'
 import request from '@/utils/request'
 
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
+const cartStore = useCartStore()
 const product = ref(null)
 const images = ref([])
 const related = ref([])
@@ -157,6 +160,7 @@ const handleAddCart = async () => {
   if (!checkAuth()) return
   try {
     await addToCart({ productId: product.value.id, amount: amount.value })
+    await cartStore.refresh()
     ElMessage.success('已加入购物车')
   } catch (e) { ElMessage.error(e?.message || '加入购物车失败') }
 }

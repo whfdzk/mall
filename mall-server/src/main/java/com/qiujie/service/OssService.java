@@ -18,7 +18,7 @@ public interface OssService {
 
     void delete(String fileName);
 
-    void deleteBatch(List<String> fileNames);
+    void deleteBatch(List<String> fileNames) throws IOException;
 
     String getETag(String fileName);
 

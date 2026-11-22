@@ -39,6 +39,12 @@ public class Order {
     @TableField("pay_method")
     private PayMethodEnum payMethod;
 
+    @TableField("coupon_id")
+    private Integer couponId;
+
+    @TableField("discount_amount")
+    private BigDecimal discountAmount;
+
     @TableField("express_delivery")
     private Integer expressDelivery;
 

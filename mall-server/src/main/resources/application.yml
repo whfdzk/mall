@@ -120,5 +120,5 @@ upload:
 mall:
   customer:
     url: ${MALL_CUSTOMER_URL:http://localhost:8000}
-
-
+  internal:
+    token: ${MALL_INTERNAL_TOKEN:mall-customer-internal-token}

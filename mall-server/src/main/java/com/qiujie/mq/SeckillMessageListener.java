@@ -251,7 +251,7 @@ public class SeckillMessageListener {
             return; // 已处理过，跳过（幂等）
         }
 
-        // — 2. 原子扣 MongoDB 商品库存 —
+        // — 2. 原子扣 MySQL 商品库存 —
         // SQL: UPDATE pms_product SET stock = stock - 1 WHERE id = ? AND stock >= 1
         int affected = productMapper.decrementStock(message.getProductId(), 1);
         if (affected == 0) {

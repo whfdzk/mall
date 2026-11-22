@@ -66,14 +66,27 @@
                     <span>x{{ item.productAmount || item.amount || 1 }}</span>
                   </div>
                 </div>
+                <div class="sum-coupon">
+                  <span class="coupon-label">优惠券</span>
+                  <el-select v-model="selectedCouponId" placeholder="不使用" clearable size="small" style="width: 200px" @change="selectedCouponId = $event || null">
+                    <el-option v-for="c in availableCoupons" :key="c.id" :label="c.couponName" :value="c.couponId">
+                      <div class="coupon-option">
+                        <span class="cp-name">{{ c.couponName }}</span>
+                        <span class="cp-val" v-if="c.couponType === 1 || c.couponType === 3">¥{{ c.discountValue }}</span>
+                        <span class="cp-val" v-else>{{ c.discountValue }}折</span>
+                        <span class="cp-cond" v-if="c.couponType === 1">满{{ c.thresholdAmount }}可用</span>
+                      </div>
+                    </el-option>
+                  </el-select>
+                </div>
                 <div class="sum-lines">
                   <div class="sum-line"><span>商品金额</span><span>&yen;{{ totalPrice.toFixed(2) }}</span></div>
-                  <div class="sum-line"><span>优惠</span><span class="discount">-&yen;0.00</span></div>
+                  <div class="sum-line"><span>优惠</span><span class="discount">-&yen;{{ discountAmount.toFixed(2) }}</span></div>
                   <div class="sum-line"><span>运费</span><span class="free">免运费</span></div>
                 </div>
                 <div class="sum-total">
                   <span>合计</span>
-                  <span class="total-price">&yen;{{ totalPrice.toFixed(2) }}</span>
+                  <span class="total-price">&yen;{{ finalPrice.toFixed(2) }}</span>
                 </div>
                 <button class="submit-btn" @click="handleSubmit" :disabled="submitting || !hasAddress">
                   {{ submitting ? '提交中...' : '提交订单' }}
@@ -98,7 +111,7 @@ import UserSidebar from '../components/UserSidebar.vue'
 import StepBar from '../components/StepBar.vue'
 import PayDialog from '../components/PayDialog.vue'
 import { useUserStore } from '@/stores/user'
-import { createOrderFromCart, buyNow, getCartList, getProductDetail, updateUserInfo } from '../api'
+import { createOrderFromCart, buyNow, getCartList, getProductDetail, updateUserInfo, getMyCoupons } from '../api'
 
 const route = useRoute()
 const router = useRouter()
@@ -107,6 +120,8 @@ const submitting = ref(false)
 const showSuccess = ref(false)
 const shipping = ref(0)
 const cartItems = ref([])
+const availableCoupons = ref([])
+const selectedCouponId = ref(null)
 const formRef = ref(null)
 const form = reactive({ recipientName: '', phone: '', address: '' })
 
@@ -162,6 +177,29 @@ const totalPrice = computed(() => {
   }, 0)
 })
 
+const selectedCoupon = computed(() => {
+  if (!selectedCouponId.value) return null
+  return availableCoupons.value.find(c => c.couponId === selectedCouponId.value)
+})
+
+const discountAmount = computed(() => {
+  if (!selectedCoupon.value) return 0
+  const c = selectedCoupon.value
+  const t = c.couponType
+  if (t === 1 && totalPrice.value < c.thresholdAmount) return 0
+  if (t === 1 || t === 3) return c.discountValue
+  if (t === 2) {
+    const disc = 1 - c.discountValue / 10
+    return Math.round(totalPrice.value * disc * 100) / 100
+  }
+  return 0
+})
+
+const finalPrice = computed(() => {
+  const v = Math.max(0, totalPrice.value - discountAmount.value)
+  return Math.round(v * 100) / 100
+})
+
 onMounted(async () => {
   try {
     await userStore.fetchUserInfo()
@@ -182,6 +220,11 @@ onMounted(async () => {
       const allItems = cartRes.data || []
       cartItems.value = allItems.filter(item => cartIds.value.includes(item.id))
     }
+
+    try {
+      const couponRes = await getMyCoupons({ current: 1, size: 100 })
+      availableCoupons.value = (couponRes.data?.records || []).filter(uc => uc.status === 0)
+    } catch {}
   } catch {
     ElMessage.error('加载订单信息失败')
   }
@@ -204,12 +247,14 @@ const handleSubmit = async () => {
 
     // 2. Create order
     let res
+    const couponIdParam = selectedCouponId.value || undefined
     if (isBuyNow.value) {
-      res = await buyNow({ productId: buyNowProductId.value, amount: buyNowAmount.value, recipientName: form.recipientName, recipientPhone: form.phone, recipientAddress: form.address, expressDelivery: shipping.value })
+      res = await buyNow({ productId: buyNowProductId.value, amount: buyNowAmount.value, couponId: couponIdParam, recipientName: form.recipientName, recipientPhone: form.phone, recipientAddress: form.address, expressDelivery: shipping.value })
     } else {
       res = await createOrderFromCart({
         cartIds: cartIds.value,
         addressId: userStore.user?.id,
+        couponId: couponIdParam,
         recipientName: form.recipientName,
         recipientPhone: form.phone,
         recipientAddress: form.address,
@@ -290,6 +335,14 @@ const handleSubmit = async () => {
 .sum-total { display: flex; justify-content: space-between; align-items: baseline;
   padding: 16px 20px; border-top: 1px solid #e0e0e0; font-size: 15px; font-weight: 500; }
 .total-price { font-size: 24px; font-weight: 700; color: #C10000; }
+
+.sum-coupon { display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 20px; border-top: 1px dashed #eee; }
+.coupon-label { font-size: 14px; color: #333; font-weight: 500; }
+.coupon-option { display: flex; justify-content: space-between; align-items: center; width: 100%; font-size: 12px; }
+.coupon-option .cp-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.coupon-option .cp-val { color: #C10000; font-weight: 600; margin: 0 4px; }
+.coupon-option .cp-cond { color: #999; font-size: 11px; }
 
 .submit-btn { width: calc(100% - 40px); margin: 0 20px 20px; height: 48px; border: none;
   border-radius: 24px; background: linear-gradient(135deg, #A10000, #c10000); color: #fff;

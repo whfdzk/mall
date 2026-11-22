@@ -56,7 +56,19 @@ public enum BusinessStatusEnum implements BaseEnum {
     SECKILL_SESSION_EXPIRED(1801, "秒杀活动已结束"),
     SECKILL_STOCK_EMPTY(1802, "已抢光"),
     SECKILL_DUPLICATE(1803, "您已参与过此秒杀活动"),
-    SECKILL_ORDER_FAILED(1804, "秒杀下单失败");
+    SECKILL_ORDER_FAILED(1804, "秒杀下单失败"),
+
+    // 优惠券
+    COUPON_NOT_EXIST(1900, "优惠券不存在"),
+    COUPON_NOT_ACTIVE(1901, "优惠券不在有效期内"),
+    COUPON_STOCK_EMPTY(1902, "优惠券已领完"),
+    COUPON_LIMIT_EXCEEDED(1903, "超出每人限领数量"),
+    COUPON_CLAIM_FAILED(1904, "领券失败，请重试"),
+    COUPON_NOT_AVAILABLE(1905, "优惠券不可用"),
+    COUPON_EXPIRED(1906, "优惠券已过期"),
+    COUPON_THRESHOLD_NOT_MET(1907, "不满足优惠券使用门槛"),
+    COUPON_ALREADY_USED(1908, "优惠券已被使用"),
+    COUPON_TYPE_UNKNOWN(1909, "未知的优惠券类型");
 
     private final Integer code;
     private final String message;

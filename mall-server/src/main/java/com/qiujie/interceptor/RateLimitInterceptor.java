@@ -45,20 +45,26 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response,
                              Object handler) {
+        // 检查限流是否已启用
         if (!rateLimitEnabled) {
             return true;
         }
+        // 检查处理器是否为方法调用
         if (!(handler instanceof HandlerMethod handlerMethod)) {
             return true;
         }
+        // 检查方法是否有 RateLimit 注解
         RateLimit rateLimit = handlerMethod.getMethodAnnotation(RateLimit.class);
         if (rateLimit == null) {
             return true;
         }
+        // 检查客户端 IP 是否为空
         String clientIp = getClientIp(request);
         String redisKey = rateLimit.key() + clientIp;
         long current = redisUtil.increment(redisKey, 1L);
+        // 检查是否为首次请求
         if (current == 1) {
+            // 首次请求，设置过期时间为窗口窗口大小
             redisUtil.expire(redisKey, rateLimit.window());
         }
         if (current > rateLimit.limit()) {
@@ -79,11 +85,13 @@ public class RateLimitInterceptor implements HandlerInterceptor {
      * @return 客户端 IP 地址
      */
     private String getClientIp(HttpServletRequest request) {
+        // 优先取 X-Forwarded-For 请求头
         String ip = request.getHeader("X-Forwarded-For");
         if (ip == null || ip.isBlank() || "unknown".equalsIgnoreCase(ip)) {
             ip = request.getHeader("X-Real-IP");
         }
         if (ip == null || ip.isBlank() || "unknown".equalsIgnoreCase(ip)) {
+            // 兜底使用 HttpServletRequest#getRemoteAddr()
             ip = request.getRemoteAddr();
         }
         return ip != null ? ip : "unknown";

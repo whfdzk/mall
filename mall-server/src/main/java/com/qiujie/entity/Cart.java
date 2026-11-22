@@ -1,6 +1,8 @@
 package com.qiujie.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.qiujie.validation.AddGroup;
+import com.qiujie.validation.UpdateGroup;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -20,11 +22,11 @@ public class Cart {
     @TableField("user_id")
     private Integer userId;
 
-    @NotNull(message = "商品ID不能为空")
+    @NotNull(message = "商品ID不能为空", groups = AddGroup.class)
     @TableField("product_id")
     private Integer productId;
 
-    @Min(value = 1, message = "数量至少为1")
+    @Min(value = 1, message = "数量至少为1", groups = {AddGroup.class, UpdateGroup.class})
     @TableField("amount")
     private Integer amount;
 

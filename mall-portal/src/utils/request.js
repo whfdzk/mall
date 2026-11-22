@@ -20,6 +20,10 @@ function trimValues(obj) {
 request.interceptors.request.use(config => {
   if (config.data) config.data = trimValues(config.data)
   if (config.params) config.params = trimValues(config.params)
+  const auth = getAuth()
+  if (auth.token) {
+    config.headers['mall'] = auth.token
+  }
   return config
 })
 

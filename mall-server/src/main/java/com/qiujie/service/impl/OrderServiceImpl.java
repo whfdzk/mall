@@ -12,11 +12,13 @@ import com.qiujie.enums.PayMethodEnum;
 import com.qiujie.exception.ServiceException;
 import com.qiujie.mapper.*;
 import com.qiujie.service.OrderService;
+import com.qiujie.service.CouponService;
 import com.qiujie.config.RabbitMQConfig;
 import com.qiujie.mq.OrderTimeoutMessage;
 import com.qiujie.constants.RedisConstants;
 import com.qiujie.util.RedisUtil;
 import com.qiujie.util.SalesRankService;
+import com.qiujie.util.CacheClient;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -42,6 +44,8 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
     private final ProductImgMapper productImgMapper;
     private final RedisUtil redisUtil;
     private final SalesRankService salesRankService;
+    private final CacheClient cacheClient;
+    private final CouponService couponService;
 
     @Autowired(required = false)
     private RabbitTemplate rabbitTemplate;
@@ -49,7 +53,8 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
     public OrderServiceImpl(OrderMapper orderMapper, OrderItemMapper orderItemMapper,
                             CartMapper cartMapper, ProductMapper productMapper,
                             ProductImgMapper productImgMapper, RedisUtil redisUtil,
-                            SalesRankService salesRankService) {
+                            SalesRankService salesRankService, CacheClient cacheClient,
+                            CouponService couponService) {
         this.orderMapper = orderMapper;
         this.orderItemMapper = orderItemMapper;
         this.cartMapper = cartMapper;
@@ -57,14 +62,18 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         this.productImgMapper = productImgMapper;
         this.redisUtil = redisUtil;
         this.salesRankService = salesRankService;
+        this.cacheClient = cacheClient;
+        this.couponService = couponService;
     }
 
     @Transactional
     public Order createFromCart(Integer userId, Map<String, Object> params) {
+        // 校验地址是否存在
         Integer addressId = (Integer) params.get("addressId");
         if (addressId == null || addressId <= 0) {
             throw new ServiceException(BusinessStatusEnum.ADDRESS_NOT_EXIST);
         }
+        // 校验支付方式是否存在并默认使用支付宝支付
         Integer payMethodCode = (Integer) params.getOrDefault("payMethod", 0);
         PayMethodEnum payMethod = PayMethodEnum.values()[payMethodCode];
 
@@ -83,6 +92,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
 
     private Order doCreateFromCart(Integer userId, Map<String, Object> params,
                                     Integer addressId, PayMethodEnum payMethod) {
+        // 校验购物车是否为空
         List<Cart> cartList = cartMapper.selectByUserId(userId);
         List<Cart> selectedCarts = new ArrayList<>();
 
@@ -121,9 +131,21 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
             if (productMapper.decrementStock(product.getId(), cart.getAmount()) == 0) {
                 throw new ServiceException(BusinessStatusEnum.PRODUCT_STOCK_INSUFFICIENT.getCode(), "商品[" + cart.getProductName() + "]库存不足");
             }
+            cacheClient.delete(RedisConstants.CACHE_PRODUCT_KEY + product.getId());
             order.setTotalAmount(order.getTotalAmount().add(product.getPrice().multiply(new BigDecimal(cart.getAmount()))));
             addOrderItem(order, product.getId(), product.getName(), product.getPrice(), cart.getProductImg(), cart.getAmount());
         }
+
+        Integer couponId = (Integer) params.get("couponId");
+        if (couponId != null && couponId > 0) {
+            BigDecimal discount = couponService.calculateDiscount(couponId, userId, order.getTotalAmount());
+            couponService.lockUserCoupon(couponId, userId, order.getId());
+            order.setCouponId(couponId);
+            order.setDiscountAmount(discount);
+            BigDecimal finalAmount = order.getTotalAmount().subtract(discount);
+            order.setTotalAmount(finalAmount.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : finalAmount);
+        }
+
         updateById(order);
         cacheOrderItems(order.getId());
 
@@ -145,6 +167,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         if (productMapper.decrementStock(productId, amount) == 0) {
             throw new ServiceException(BusinessStatusEnum.PRODUCT_STOCK_INSUFFICIENT);
         }
+        cacheClient.delete(RedisConstants.CACHE_PRODUCT_KEY + productId);
 
         Product product = productMapper.selectById(productId);
         Order order = buildOrder(userId, null, PayMethodEnum.UNKNOWN, params);
@@ -156,6 +179,17 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         String imgUrl = firstImg != null ? firstImg.getUrl() : null;
         OrderItem item = addOrderItem(order, product.getId(), product.getName(), product.getPrice(), imgUrl, amount);
         cacheOrderItems(order.getId());
+
+        Integer couponId = (Integer) params.get("couponId");
+        if (couponId != null && couponId > 0) {
+            BigDecimal discount = couponService.calculateDiscount(couponId, userId, order.getTotalAmount());
+            couponService.lockUserCoupon(couponId, userId, order.getId());
+            order.setCouponId(couponId);
+            order.setDiscountAmount(discount);
+            BigDecimal finalAmount = order.getTotalAmount().subtract(discount);
+            order.setTotalAmount(finalAmount.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : finalAmount);
+            updateById(order);
+        }
 
         order.setItems(List.of(item));
         return order;
@@ -177,6 +211,10 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         }
         updateById(order);
         adjustSalesRank(id, 1);
+
+        if (order.getCouponId() != null) {
+            couponService.useUserCoupon(id);
+        }
     }
 
     public List<Order> list(Integer userId) {
@@ -246,8 +284,13 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
                         .eq("order_id", id));
         for (OrderItem item : items) {
             productMapper.incrementStock(item.getProductId(), item.getAmount());
+            cacheClient.delete(RedisConstants.CACHE_PRODUCT_KEY + item.getProductId());
         }
         adjustSalesRank(id, -1);
+
+        if (order.getCouponId() != null) {
+            couponService.releaseUserCoupon(id);
+        }
     }
 
     public void receipt(Integer userId, Integer id) {

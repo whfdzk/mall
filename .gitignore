@@ -97,3 +97,11 @@ __pycache__/
 
 # Git Bash crash dumps
 *.stackdump
+
+# --- 2026-11-22 运行时产物：不入库 ---
+mall-server/img/
+mall-customer/data/
+mall-customer/vector_store/
+.venv/
+*.db
+*.sqlite3
