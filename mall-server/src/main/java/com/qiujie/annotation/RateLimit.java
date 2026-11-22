@@ -9,7 +9,7 @@ import java.lang.annotation.*;
  * 通过 INCR + EXPIRE 在指定时间窗口内限制同一客户端 IP 的请求次数。
  * </p>
  *
- * @author qiujie
+ * @author whf
  * @date 2026/05/30
  */
 @Target(ElementType.METHOD) // 只能加在方法上

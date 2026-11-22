@@ -20,7 +20,7 @@ import static com.qiujie.constants.RedisConstants.*;
 /**
  * 商品销量排行榜服务 — Caffeine 本地聚合 + Redis ZSet 持久化
  *
- * @author qiujie
+ * @author whf
  */
 @Component
 public class SalesRankService {

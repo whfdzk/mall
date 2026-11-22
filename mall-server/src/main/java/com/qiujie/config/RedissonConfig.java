@@ -17,7 +17,7 @@ import org.springframework.util.StringUtils;
  * 业务代码需自行拼接完整 Key。
  * </p>
  *
- * @author qiujie
+ * @author whf
  */
 @Configuration
 public class RedissonConfig {

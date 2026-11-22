@@ -11,7 +11,7 @@ import static com.qiujie.constants.RedisConstants.*;
 /**
  * 启动时清空首页和分类缓存，防止部署后旧缓存结构与新代码不兼容
  *
- * @author qiujie
+ * @author whf
  */
 @Component
 public class CacheInit {

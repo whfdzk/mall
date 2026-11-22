@@ -23,7 +23,7 @@
 
 一次对话经过三个进程：浏览器 → `mall-server`（Java）→ `mall-customer`（Python）。Java 这层还负责鉴权、落库与会话管理：
 
-![客服对话的调用链：浏览器 → mall-server → mall-customer](https://cdn.jsdelivr.net/gh/quuuuj/mall@dev/img/note/02/customer-chat-sequence.png)
+![客服对话的调用链：浏览器 → mall-server → mall-customer](https://cdn.jsdelivr.net/gh/whfdzk/mall@dev/img/note/02/customer-chat-sequence.png)
 
 `mall-server` 通过 HTTP 调用 `/api/chat`：请求体是 JSON（`user_id`、`session_id`、`message`），应答是 `text/event-stream` 内容分片，浏览器收到一片渲染一片，不用等整段回复。
 
@@ -108,7 +108,7 @@ CREATE TABLE `cs_message` (
 
 消息从发出到落库：
 
-![消息从发送到落库的完整流程：校验归属 → 落库 → 调用客服 → 流式回复](https://cdn.jsdelivr.net/gh/quuuuj/mall@dev/img/note/02/customer-chat-flow.png)
+![消息从发送到落库的完整流程：校验归属 → 落库 → 调用客服 → 流式回复](https://cdn.jsdelivr.net/gh/whfdzk/mall@dev/img/note/02/customer-chat-flow.png)
 
 ## 三、Controller 接口
 
@@ -147,15 +147,15 @@ public Flux<ServerSentEvent<String>> chat(@RequestBody Map<String, Object> body)
 
 入口是跟随页面的全局悬浮按钮：未登录时点击提示"请登录"并跳转登录页，已登录则展开客服面板：
 
-![商城页面右下角的智能客服悬浮入口](https://cdn.jsdelivr.net/gh/quuuuj/mall@dev/img/note/02/portal-customer-entry.png)
+![商城页面右下角的智能客服悬浮入口](https://cdn.jsdelivr.net/gh/whfdzk/mall@dev/img/note/02/portal-customer-entry.png)
 
 面板固定在页面右下角，头部显示"小店助手 / 在线 · 通常 1 分钟内回复"，进入先给一句欢迎语，下面是四个高频问题入口：
 
-![智能客服面板的欢迎态与快捷问题](https://cdn.jsdelivr.net/gh/quuuuj/mall@dev/img/note/02/customer-modal-welcome.png)
+![智能客服面板的欢迎态与快捷问题](https://cdn.jsdelivr.net/gh/whfdzk/mall@dev/img/note/02/customer-modal-welcome.png)
 
 会话管理在底部抽屉：新建会话、切换历史会话、删除会话，切换时拉取该会话的历史消息，重开页面也能接着上次聊：
 
-![会话列表抽屉：新建、切换与删除](https://cdn.jsdelivr.net/gh/quuuuj/mall@dev/img/note/02/customer-modal-sessions.png)
+![会话列表抽屉：新建、切换与删除](https://cdn.jsdelivr.net/gh/whfdzk/mall@dev/img/note/02/customer-modal-sessions.png)
 
 ## 后续计划
 
@@ -166,6 +166,5 @@ public Flux<ServerSentEvent<String>> chat(@RequestBody Map<String, Object> body)
 
 ## 相关链接
 
-- **商城项目主仓库**：<https://github.com/quuuuj/mall>
-- **在线体验**：<https://mall.qiujie.net.cn/>（默认体验账号：`admin` / `123456`）
+- **商城项目主仓库**：<https://github.com/whfdzk/mall>
 - **上一篇**：《商城接入 LangGraph 多 Agent 客服：服务搭建与问题修复》

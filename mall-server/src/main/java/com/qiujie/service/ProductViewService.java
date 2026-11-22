@@ -9,7 +9,7 @@ import java.util.Map;
 /**
  * 商品浏览服务 — 门户热点路径（首页、分类、详情）。
  *
- * @author qiujie
+ * @author whf
  */
 public interface ProductViewService {
 

@@ -51,7 +51,7 @@ import java.util.Map;
  * </ol>
  * </p>
  *
- * @author qiujie
+ * @author whf
  */
 @Component
 public class SeckillMessageListener {

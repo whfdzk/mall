@@ -22,7 +22,7 @@ import java.util.List;
  * 仅供 mall-customer（Python）服务端到服务端调用，通过 X-Internal-Token 鉴权，
  * 不走 Sa-Token 登录态（Agent 拿不到用户的登录 token，由 mall-server 用 user_id 代查）。
  *
- * @author qiujie
+ * @author whf
  */
 @RestController
 @RequestMapping("/internal/agent")

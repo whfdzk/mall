@@ -7,7 +7,7 @@ import com.qiujie.entity.Product;
 /**
  * 商品管理服务 — 管理端 CRUD + 缓存失效。
  *
- * @author qiujie
+ * @author whf
  */
 public interface ProductAdminService extends IService<Product> {
 

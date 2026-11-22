@@ -14,7 +14,7 @@ import java.util.List;
 /**
  * ES 增量同步定时任务 — 每分钟扫描 MySQL 最近变更的商品批量写入 ES
  *
- * @author qiujie
+ * @author whf
  */
 @Component
 public class IncSyncProductToEs {

@@ -10,7 +10,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 /**
  * 异步任务配置，用于 ES 同步等非关键路径的解耦
  *
- * @author qiujie
+ * @author whf
  */
 @Configuration
 @EnableAsync

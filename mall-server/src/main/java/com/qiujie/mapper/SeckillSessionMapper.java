@@ -11,7 +11,7 @@ import java.util.List;
 /**
  * 秒杀活动场次 Mapper
  *
- * @author qiujie
+ * @author whf
  */
 @Mapper
 public interface SeckillSessionMapper extends BaseMapper<SeckillSession> {

@@ -11,7 +11,7 @@ import org.springframework.web.reactive.function.client.WebClient;
  * WebClient 不可变且线程安全，构建一次长期复用即可；每次请求重建会反复装配
  * codecs / exchange strategies，且不利于统一配置超时与连接池。
  *
- * @author qiujie
+ * @author whf
  */
 @Configuration
 public class WebClientConfig {

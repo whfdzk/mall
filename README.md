@@ -6,11 +6,9 @@
 
 基于 Spring Boot 3 + Vue 3 的 B2C 电商平台，覆盖用户注册登录、商品浏览、购物车、下单、支付全流程，并内置高并发秒杀系统与多 Agent 智能客服。
 
-## 在线体验
+## 本地访问
 
-- **用户门户（商城前台）**：https://mall.qiujie.net.cn
-- **管理后台（运营端）**：https://mall.qiujie.net.cn/admin/
-- **默认测试账号**：用户名 `admin` / 密码 `123456`（登录页已预填）
+启动后：用户门户 `http://localhost:3001`，管理后台 `http://localhost:3002`，后端 API `http://localhost:8800`，智能客服 `http://localhost:8000`。默认账号见文末「默认账号」。
 
 ## 项目介绍
 
@@ -280,7 +278,3 @@ python -m api.main
 ## 参考开源项目
 
 - **[smart-cs-multi-agent](https://github.com/bcefghj/smart-cs-multi-agent)**：本项目 `mall-customer` 模块的多 Agent 智能客服（LangGraph + FastAPI 架构编排、三层记忆体系设计等）参考了该开源项目。
-
-## 交流群
-
-欢迎加入 QQ 交流群：**967925576**

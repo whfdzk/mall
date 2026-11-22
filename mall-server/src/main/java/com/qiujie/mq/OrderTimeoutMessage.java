@@ -6,7 +6,7 @@ import java.io.Serializable;
 /**
  * 订单超时取消延时消息体
  *
- * @author qiujie
+ * @author whf
  */
 @Data
 public class OrderTimeoutMessage implements Serializable {

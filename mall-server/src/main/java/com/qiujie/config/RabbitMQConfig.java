@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Configuration;
 /**
  * RabbitMQ 配置 — 秒杀订单队列
  *
- * @author qiujie
+ * @author whf
  */
 @Configuration
 public class RabbitMQConfig {

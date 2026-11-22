@@ -28,7 +28,7 @@ Redis 里存着最近的对话，但它和图是断开的：
 
 `graph.compile(checkpointer=...)` 之后，每次执行都以 `thread_id` 为键，把每个 superstep 后的完整状态快照写入存储；下一轮用同一个 `thread_id` 调 `ainvoke()` 时，框架先恢复上次状态、再按字段上的 reducer（`messages` 上是 `add_messages`）合并本轮输入，`graph.aget_state()` 可读出当前状态。
 
-![Agent State 检查点读写流程：按 thread_id 读取 → 本轮执行 → 每个 superstep 写回 Redis](https://cdn.jsdelivr.net/gh/quuuuj/mall@dev/img/note/03/checkpoint-sequence.png)
+![Agent State 检查点读写流程：按 thread_id 读取 → 本轮执行 → 每个 superstep 写回 Redis](https://cdn.jsdelivr.net/gh/whfdzk/mall@dev/img/note/03/checkpoint-sequence.png)
 
 ## 三、换成 Redis Checkpointer
 
@@ -247,15 +247,15 @@ CHITCHAT_SYSTEM_PROMPT = """你是一个友好的电商客服，负责处理用�
 
 - **多轮上下文**：两轮对话为"我叫小明，记住我的名字"→"我叫什么名字？"，第二轮正确回溯了第一轮的姓名，`/api/history` 返回的 4 条消息与对话一致。
 
-![门户端智能客服两轮对话：第二轮正确回溯了第一轮告知的姓名](https://cdn.jsdelivr.net/gh/quuuuj/mall@dev/img/note/03/portal-chat-multiturn.png)
+![门户端智能客服两轮对话：第二轮正确回溯了第一轮告知的姓名](https://cdn.jsdelivr.net/gh/whfdzk/mall@dev/img/note/03/portal-chat-multiturn.png)
 
 - **重启恢复**：重启 `mall-customer` 进程后，`/api/history` 仍返回完整的 4 条消息；追问姓名时，回复正确引用了重启前告知的信息。
 
-![重启 mall-customer 进程后完整历史恢复，新回复正确引用重启前告知的姓名](https://cdn.jsdelivr.net/gh/quuuuj/mall@dev/img/note/03/portal-chat-after-restart.png)
+![重启 mall-customer 进程后完整历史恢复，新回复正确引用重启前告知的姓名](https://cdn.jsdelivr.net/gh/whfdzk/mall@dev/img/note/03/portal-chat-after-restart.png)
 
 - **多轮工单**：修复前三条消息建了三张工单；修复后第一条建单 `TK-20261011-6C4751`（中等优先级），第二条返回"工单已更新成功！工单号: TK-20261011-6C4751 ⚡ 优先级: 紧急"，第三条查回同一张单，更新时间正是升级优先级的时间。
 
-![修复后同一条工单贯穿建单、升级优先级与进度查询](https://cdn.jsdelivr.net/gh/quuuuj/mall@dev/img/note/03/portal-chat-ticket-flow.png)
+![修复后同一条工单贯穿建单、升级优先级与进度查询](https://cdn.jsdelivr.net/gh/whfdzk/mall@dev/img/note/03/portal-chat-ticket-flow.png)
 
 - **合规撤回与去重**：这两条路径不便直接演示，用 `FakeListChatModel` 写临时冒烟脚本按图的三条出口断言，全部通过：合规通过只留一条 AI 回复；不通过时违规结果被 `RemoveMessage` 撤回，只留转人工话术；直达合规时追加兜底话术。
 
@@ -279,5 +279,4 @@ Redis 可用时   => AsyncRedisSaver
 
 ## 相关链接
 
-- **项目地址**：<https://github.com/quuuuj/mall>
-- **在线访问**：<https://mall.qiujie.net.cn/>（默认体验账号：`admin` / `123456`）
+- **项目地址**：<https://github.com/whfdzk/mall>

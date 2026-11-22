@@ -8,7 +8,7 @@ import org.springframework.data.elasticsearch.repository.ElasticsearchRepository
 /**
  * 商品 ES 搜索仓库
  *
- * @author qiujie
+ * @author whf
  */
 public interface ProductSearchRepository extends ElasticsearchRepository<ProductDocument, Integer> {
 }

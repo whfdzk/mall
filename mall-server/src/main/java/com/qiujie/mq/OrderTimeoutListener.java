@@ -23,7 +23,7 @@ import java.util.List;
 /**
  * 订单超时取消监听器 — 消费 DLX 路由过来的过期消息，并恢复秒杀库存
  *
- * @author qiujie
+ * @author whf
  */
 @Component
 public class OrderTimeoutListener {

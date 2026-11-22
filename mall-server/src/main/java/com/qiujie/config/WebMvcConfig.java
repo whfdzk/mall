@@ -11,7 +11,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  * 注册自定义拦截器，包括接口限流拦截器 {@link RateLimitInterceptor}。
  * </p>
  *
- * @author qiujie
+ * @author whf
  * @date 2026/05/30
  */
 @Configuration

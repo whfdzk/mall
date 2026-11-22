@@ -18,7 +18,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
  * 使用 INCR + EXPIRE 在窗口期内限制同一 IP 的请求次数。
  * </p>
  *
- * @author qiujie
+ * @author whf
  * @date 2026/05/30
  */
 @Component

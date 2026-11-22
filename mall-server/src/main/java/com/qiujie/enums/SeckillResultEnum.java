@@ -5,7 +5,7 @@ import lombok.Getter;
 /**
  * 秒杀结果枚举
  *
- * @author qiujie
+ * @author whf
  */
 @Getter
 public enum SeckillResultEnum {

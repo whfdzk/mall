@@ -28,7 +28,7 @@ import java.util.Map;
  * 供 mall-customer（Python）在启动时拉取真实上架商品，构建 RAG 知识库。
  * 同样走 X-Internal-Token 服务间鉴权，避免接口裸奔。
  *
- * @author qiujie
+ * @author whf
  */
 @RestController
 @RequestMapping("/internal/agent")

@@ -8,7 +8,7 @@ import java.util.Map;
 /**
  * 秒杀活动业务接口
  *
- * @author qiujie
+ * @author whf
  */
 public interface SeckillService {
 

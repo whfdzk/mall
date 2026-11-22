@@ -19,7 +19,7 @@ import static com.qiujie.constants.RedisConstants.*;
 /**
  * Redis 缓存客户端实现 — 穿透/击穿的三个模板方法
  *
- * @author qiujie
+ * @author whf
  */
 @Component
 public class RedisCacheClient implements CacheClient {

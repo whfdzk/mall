@@ -12,7 +12,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
- * @author qiujie
+ * @author whf
  */
 @Service
 public class ImageServiceImpl implements ImageService {

@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 /**
  * 秒杀活动场次实体
  *
- * @author qiujie
+ * @author whf
  */
 @Data
 @Accessors(chain = true)

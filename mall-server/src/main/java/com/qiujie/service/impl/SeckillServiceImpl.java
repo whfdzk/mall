@@ -59,7 +59,7 @@ import java.util.Map;
  *   <li>秒杀结果：通过 Redis 轮询获取订单创建结果（异步解耦）</li>
  * </ul>
  *
- * @author qiujie
+ * @author whf
  */
 @Service
 public class SeckillServiceImpl extends ServiceImpl<SeckillSessionMapper, SeckillSession> implements SeckillService {

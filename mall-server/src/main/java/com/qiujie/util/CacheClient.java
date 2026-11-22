@@ -6,7 +6,7 @@ import java.util.function.Function;
 /**
  * 缓存客户端接口 — 模板方法抽象，支持不同缓存策略热插拔
  *
- * @author qiujie
+ * @author whf
  */
 public interface CacheClient {
 

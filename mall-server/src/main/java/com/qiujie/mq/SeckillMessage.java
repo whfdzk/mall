@@ -7,7 +7,7 @@ import java.math.BigDecimal;
 /**
  * 秒杀下单消息体
  *
- * @author qiujie
+ * @author whf
  */
 @Data
 public class SeckillMessage implements Serializable {

@@ -14,7 +14,7 @@ import java.util.Set;
 /**
  * 商品 ID 集合 — 防缓存穿透
  *
- * @author qiujie
+ * @author whf
  */
 @Component
 public class BloomFilterService {

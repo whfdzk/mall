@@ -24,7 +24,7 @@ import java.util.*;
 /**
  * 商品搜索服务 — ES 优先，失败降级 MySQL。
  *
- * @author qiujie
+ * @author whf
  */
 @Service
 public class ProductSearchServiceImpl implements ProductSearchService {

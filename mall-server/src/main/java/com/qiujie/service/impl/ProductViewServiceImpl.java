@@ -26,7 +26,7 @@ import static com.qiujie.constants.RedisConstants.*;
 /**
  * 商品浏览服务实现 — 首页、分类、详情，仅依赖缓存 + DB。
  *
- * @author qiujie
+ * @author whf
  */
 @Service
 public class ProductViewServiceImpl implements ProductViewService {

@@ -15,7 +15,7 @@ import java.util.Map;
 /**
  * 秒杀活动控制器（门户端）
  *
- * @author qiujie
+ * @author whf
  */
 @Tag(name = "秒杀活动")
 @RestController

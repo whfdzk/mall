@@ -13,7 +13,7 @@ import java.util.List;
 /**
  * Sa-Token 权限加载实现 —— 基于数据库用户角色
  *
- * @author qiujie
+ * @author whf
  */
 @Component
 public class StpInterfaceImpl implements StpInterface {

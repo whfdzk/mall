@@ -18,7 +18,7 @@ import org.springframework.stereotype.Service;
 /**
  * ES 异步同步服务，避免阻塞 HTTP 响应线程
  *
- * @author qiujie
+ * @author whf
  */
 @Service
 public class EsSyncService {

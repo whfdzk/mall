@@ -8,7 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 /**
  * 设备类型识别工具 —— 从 User-Agent 解析客户端设备类型
  *
- * @author qiujie
+ * @author whf
  */
 public class DeviceUtils {
 

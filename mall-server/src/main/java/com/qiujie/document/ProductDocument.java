@@ -11,7 +11,7 @@ import java.math.BigDecimal;
 /**
  * 商品 ES 文档映射
  *
- * @author qiujie
+ * @author whf
  */
 @Data
 @Document(indexName = "mall_product", createIndex = false)

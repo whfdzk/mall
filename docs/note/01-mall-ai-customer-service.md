@@ -82,7 +82,7 @@ python -m api.main
 
 服务启动后，`http://localhost:8000/docs` 是 FastAPI 自动生成的接口文档，包含对话（`/api/chat`）、历史记录、工具列表与调用、监控指标、健康检查几组接口：
 
-![FastAPI Swagger 接口文档](https://cdn.jsdelivr.net/gh/quuuuj/mall@dev/img/note/01/fastapi-swagger-docs.png)
+![FastAPI Swagger 接口文档](https://cdn.jsdelivr.net/gh/whfdzk/mall@dev/img/note/01/fastapi-swagger-docs.png)
 
 ## 四、问题与修改
 
@@ -127,7 +127,7 @@ curl -X POST http://localhost:8000/api/chat \
 
 原因在汇总环节：合成节点用 `join` 拼接各子 Agent 的结果，而 `join` 只接受字符串。断点处可见，`sub_results` 里 `ticket_handler` 返回的是字符串（`{str}`），`compliance` 返回的是含审核状态的字典（`{dict: 3}`）：
 
-![Debug 断点：compliance 返回类型为 dict](https://cdn.jsdelivr.net/gh/quuuuj/mall@dev/img/note/01/debug-compliance-dict-type-error.png)
+![Debug 断点：compliance 返回类型为 dict](https://cdn.jsdelivr.net/gh/whfdzk/mall@dev/img/note/01/debug-compliance-dict-type-error.png)
 
 ```python
 for agent_name, result in sub_results.items():
@@ -172,6 +172,5 @@ final_response = "\n\n".join(result_parts) if result_parts else "抱歉，暂时
 
 ## 相关链接
 
-- **商城项目主仓库**：<https://github.com/quuuuj/mall>
-- **在线体验**：<https://mall.qiujie.net.cn/>（默认体验账号：`admin` / `123456`）
+- **商城项目主仓库**：<https://github.com/whfdzk/mall>
 - **参考开源项目**：<https://github.com/bcefghj/smart-cs-multi-agent>

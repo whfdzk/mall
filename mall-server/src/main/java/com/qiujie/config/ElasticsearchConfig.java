@@ -20,7 +20,7 @@ import java.util.List;
 /**
  * ES 配置 — 启动时检查索引并全量导入已有商品
  *
- * @author qiujie
+ * @author whf
  */
 @Configuration
 public class ElasticsearchConfig implements ApplicationRunner {

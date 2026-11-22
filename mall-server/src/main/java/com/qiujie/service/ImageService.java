@@ -6,7 +6,7 @@ import java.io.IOException;
 /**
  * 商品图片服务 — 封装本地文件读取、OSS 回源下载与 HTTP 响应输出。
  *
- * @author qiujie
+ * @author whf
  */
 public interface ImageService {
 

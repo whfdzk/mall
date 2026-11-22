@@ -26,7 +26,7 @@ import static com.qiujie.constants.RedisConstants.*;
 /**
  * 商品管理服务 — 管理端 CRUD + 缓存失效。
  *
- * @author qiujie
+ * @author whf
  */
 @Service
 public class ProductAdminServiceImpl extends ServiceImpl<ProductMapper, Product> implements ProductAdminService {

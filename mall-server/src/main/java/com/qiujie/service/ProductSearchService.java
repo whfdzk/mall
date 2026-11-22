@@ -8,7 +8,7 @@ import java.util.Map;
 /**
  * 商品搜索服务 — ES 搜索引擎 + MySQL 降级。
  *
- * @author qiujie
+ * @author whf
  */
 public interface ProductSearchService {
 
